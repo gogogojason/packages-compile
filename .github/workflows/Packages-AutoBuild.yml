@@ -18,11 +18,7 @@ on:
 
 env:
   REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
-  PPPOE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
-  PPPOE_PASSWD: ${{ secrets.PPPOE_PASSWD }}
   SCKEY: ${{ secrets.SCKEY }}
-  TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
   TZ: Asia/Shanghai
 
 jobs:
@@ -34,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: ["${{ github.event.client_payload.target }}"]
+        target: [x86_64,All_RM2100]
         
     steps:
     - name: Checkout
@@ -49,26 +45,18 @@ jobs:
         echo "DIY_SH=${DIY_SH}" >> $GITHUB_ENV
         echo "FREE_UP_DISK=${FREE_UP_DISK}" >> $GITHUB_ENV
         echo "SSH_ACTIONS=${SSH_ACTIONS}" >> $GITHUB_ENV
-        echo "UPLOAD_BIN_DIR_FOR_ARTIFACT=${UPLOAD_BIN_DIR_FOR_ARTIFACT}" >> $GITHUB_ENV
-        echo "UPLOAD_FIRMWARE_FOR_ARTIFACT=${UPLOAD_FIRMWARE_FOR_ARTIFACT}" >> $GITHUB_ENV
-        echo "UPLOAD_FIRMWARE_FOR_RELEASE=${UPLOAD_FIRMWARE_FOR_RELEASE}" >> $GITHUB_ENV
-        echo "UPLOAD_FIRMWARE_TO_COWTRANSFER=${UPLOAD_FIRMWARE_TO_COWTRANSFER}" >> $GITHUB_ENV
-        echo "UPLOAD_FIRMWARE_TO_WETRANSFER=${UPLOAD_FIRMWARE_TO_WETRANSFER}" >> $GITHUB_ENV
-        if [ ${{matrix.target}} == "redmi-ac2100" ]; then
+        echo "UPLOAD_MYPAN=${UPLOAD_MYPAN}" >> $GITHUB_ENV
+        echo "UPLOAD_FIRMWARE=${UPLOAD_FIRMWARE}" >> $GITHUB_ENV
+        echo "UPLOAD_RELEASE=${UPLOAD_RELEASE}" >> $GITHUB_ENV
+        echo "UPLOAD_COWTRANSFER=${UPLOAD_COWTRANSFER}" >> $GITHUB_ENV
+        echo "UPLOAD_WETRANSFER=${UPLOAD_WETRANSFER}" >> $GITHUB_ENV
+        if [ ${{matrix.target}} == "All_RM2100" ]; then
             echo "MTARGET=mipsel_24kc" >> $GITHUB_ENV
             elif [ ${{matrix.target}} == "x86_64" ]; then
             echo "MTARGET=x86_64" >> $GITHUB_ENV
         else
             echo "MTARGET=aarch64_generic" >> $GITHUB_ENV
         fi
-
-    - name: Trigger Packages Update
-      if: github.event.repository.owner.id == '48883331' && ! contains(github.event.action, 'nopd')
-      run: |
-        curl -X POST https://api.github.com/repos/garypang13/openwrt-packages/dispatches \
-        -H "Accept: application/vnd.github.everest-preview+json" \
-        -H "Authorization: token ${{ secrets.REPO_TOKEN }}" \
-        --data '{"event_type": "update"}'
 
     - name: Initialization environment
       env:
@@ -91,7 +79,7 @@ jobs:
     - name: Clone source code
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
-        svn co https://github.com/garypang13/Actions-OpenWrt/trunk/devices openwrt/devices
+        svn co https://github.com/gogogojason/New-Openwrt-AutoBuild/trunk/devices openwrt/devices
 
     - name: Free up disk space
       if: env.FREE_UP_DISK == 'true'
@@ -129,7 +117,6 @@ jobs:
          echo >> package/*/*/default-settings/root/etc/uci-defaults/99-default-settings
          cat devices/${{matrix.target}}/default-settings >> package/*/*/default-settings/root/etc/uci-defaults/99-default-settings
         fi
-        sed -i "s/index()/index()\nif luci.sys.exec(\"cat \/etc\/openwrt_release | grep -o -E ^DISTRIB_DESCRIPTION='.*SNAPSHOT.*GaryPang'\") == \"\" then return end/g" package/feeds/custom/luci-app*/luasrc/controller/*.lua
         mv devices/common/$CONFIG_FILE .config
         if [ -f "devices/${{matrix.target}}/$CONFIG_FILE" ]; then
           echo >> .config
@@ -144,12 +131,9 @@ jobs:
           find "devices/${{matrix.target}}/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d './' -p1 -E --forward --no-backup-if-mismatch"
         fi
         
-    - name: Default PPPOE Setting
-      if: env.PPPOE_USERNAME && env.PPPOE_PASSWD
-      run: |
-        sed -i '$i uci set network.wan.username=${{ env.PPPOE_USERNAME }}' openwrt/package/*/*/default-settings/root/etc/uci-defaults/99-default-settings
-        sed -i '$i uci set network.wan.password=${{ env.PPPOE_PASSWD }}' openwrt/package/*/*/default-settings/root/etc/uci-defaults/99-default-settings
-        sed -i '$i uci commit network' openwrt/package/*/*/default-settings/root/etc/uci-defaults/99-default-settings
+        echo "修改地址"
+        sed -i 's/firmware\/redmi-ac2100/firmware\/${{matrix.target}}/g' feeds/custom/luci-app-gpsysupgrade/root/usr/bin/upgrade.lua
+        sed -i 's/firmware\/redmi-ac2100/firmware\/${{matrix.target}}/g' feeds/custom/luci-app-gpsysupgrade/luasrc/model/cbi/gpsysupgrade/sysupgrade.lua  
               
     - name: SSH connection to Actions
       uses: garypang13/debugger-action@master
@@ -191,7 +175,7 @@ jobs:
         echo "!packages/" >.git-ftp-include
 
     - name: Upload firmware to cowtransfer
-      if: env.UPLOAD_FIRMWARE_TO_COWTRANSFER == 'true'
+      if: env.UPLOAD_COWTRANSFER == 'true'
       continue-on-error: true
       run: |
         curl -fsSL git.io/file-transfer | sh
@@ -201,7 +185,7 @@ jobs:
         echo "Download Link: ${{ env.EMOJI }} $cowurl ${{ env.EMOJI }} 🚀"
  
     - name: Upload firmware to WeTransfer
-      if: env.UPLOAD_FIRMWARE_TO_WETRANSFER == 'true'
+      if: env.UPLOAD_WETRANSFER == 'true'
       continue-on-error: true
       run: |
         curl -fsSL git.io/file-transfer | sh
@@ -212,11 +196,11 @@ jobs:
         
     - name: Create release
       id: create_release
-      if: env.REPO_TOKEN && env.UPLOAD_FIRMWARE_FOR_RELEASE == 'true'
+      if: env.REPO_TOKEN && env.UPLOAD_RELEASE == 'true'
       continue-on-error: true
       run: |
         echo -e "墙内加速下载 🚀:\n" >> release.txt
-        echo -e "[腾讯云] (https://op.supes.top/firmware/${{matrix.target}}/ ☁)\n" >> release.txt
+        echo -e "[腾讯云] (http://openwrt.ink:8666/firmware/${{matrix.target}}/ ☁)\n" >> release.txt
         [ ${{ env.WETRANS }} ] && echo -e "[WeTransfer] (${{ env.WETRANS }} 🗽)\n" >> release.txt
         [ ${{ env.COWURL }} ] && echo -e "[奶牛上传] (${{ env.COWURL }} 🐮)\n" >> release.txt
         [ ${{ env.NOTICE }} ] && echo -e "${{ env.NOTICE }}" >> release.txt || true
@@ -224,7 +208,7 @@ jobs:
     - name: Upload firmware for release
       uses: softprops/action-gh-release@v1
       continue-on-error: true
-      if: env.REPO_TOKEN && env.UPLOAD_FIRMWARE_FOR_RELEASE == 'true'
+      if: env.REPO_TOKEN && env.UPLOAD_RELEASE == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
       with:
@@ -233,21 +217,22 @@ jobs:
         tag_name: ${{ env.date }}_${{matrix.target}}
         body_path: release.txt
 
-    - name: deploy files to server
-      uses: easingthemes/ssh-deploy@master
-      continue-on-error: true
-      with:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        ARGS: "-avzr --delete"
-        SOURCE: "packages/"
-        REMOTE_HOST: op.supes.top
-        REMOTE_USER: root
-        TARGET: "/www/wwwroot/op.supes.top/packages/${{ env.MTARGET }}/"
+    - name: 上传固件到网盘
+      uses: AEnterprise/rsync-deploy@v1.0 
+      if: env.UPLOAD_MYPAN == 'true'
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }} 
+        ARGS: -avzr --exclude=
+        SERVER_PORT: ${{ secrets.SERVER_PORT }}
+        FOLDER: packages/
+        SERVER_IP: ${{ secrets.SSH_HOST }} 
+        USERNAME: ${{ secrets.SSH_USERNAME }} 
+        SERVER_DESTINATION: /mnt/disk2/appdata/h5ai/Packages/
 
     - name: Upload packages for artifact
       uses: actions/upload-artifact@main
       continue-on-error: true
-      if: env.UPLOAD_FIRMWARE_FOR_ARTIFACT == 'true'
+      if: env.UPLOAD_FIRMWARE == 'true'
       with:
         name: ${{ env.date3 }} ${{ env.MTARGET }}
         path: ${{ env.FIRMWARE }}
@@ -258,11 +243,6 @@ jobs:
       run: |
         [ ${{ env.status }} == 'success' ] && curl https://sc.ftqq.com/${{ secrets.SCKEY }}.send?text=🎉OpenWrt_${{ env.date3 }}_${{ env.MTARGET }}软件仓库已更新😋|| curl https://sc.ftqq.com/${{ secrets.SCKEY }}.send?text=❌OpenWrt_${{ env.date3 }}_${{ env.MTARGET }}软件仓库更新失败😂
 
-    - name: Telegram notification
-      if: env.TELEGRAM_TOKEN && ! contains(github.event.action, 'notg')
-      run: |
-        # [ ${{ env.status }} == 'success' ] && curl -k --data chat_id="-1001382947163" --data "text=🎉 OpenWrt ${{ env.date3 }} ${{ env.MTARGET }} 软件仓库已更新 😋  ${{ env.COWURL }}   ${{ env.WETRANS }} 🚀" "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage"
-
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
       with:
@@ -272,7 +252,7 @@ jobs:
     - name: Remove old Releases
       uses: dev-drprasad/delete-older-releases@master
       continue-on-error: true
-      if: env.UPLOAD_FIRMWARE_FOR_RELEASE == 'true' && !cancelled()
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
         keep_latest: 15
         delete_tags: true
