@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#cp -f ~/openwrt/bin/targets/x86/64/packages/* ~/openwrt/bin/packages/x86_64/custom
+
+SCRIPT=${GITHUB_WORKSPACE}/openwrt/scripts/ipkg-make-index.sh
+export PATH="${GITHUB_WORKSPACE}/openwrt/staging_dir/host/bin:$PATH"
+# Generates package manifest
+cd ${GITHUB_WORKSPACE}/packages
+$SCRIPT . 2>/dev/null > Packages.manifest
+grep -vE '^(Maintainer|LicenseFiles|Source|Require)' Packages.manifest > Packages
+sed -i 's/luci-lib-docker,/luci-lib-docker, docker, dockerd,/' Packages
+gzip -9nc Packages > Packages.gz
+cd -
