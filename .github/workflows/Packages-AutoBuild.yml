@@ -227,7 +227,7 @@ jobs:
         FOLDER: packages/
         SERVER_IP: ${{ secrets.SSH_HOST }} 
         USERNAME: ${{ secrets.SSH_USERNAME }} 
-        SERVER_DESTINATION: /mnt/disk2/appdata/h5ai/Packages/
+        SERVER_DESTINATION: /mnt/disk2/appdata/h5ai/Packages/${{ env.MTARGET }}/
 
     - name: Upload packages for artifact
       uses: actions/upload-artifact@main
