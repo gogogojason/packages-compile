@@ -6,7 +6,7 @@
 # Blog: https://p3terx.com
 #=================================================
 
-name: patch
+name: patches
 
 on:
   workflow_dispatch:
