@@ -158,7 +158,11 @@ jobs:
       run: |
         cd openwrt
         echo -e "$(($(nproc)+1)) thread compile"
-        make -j$(($(nproc)+1)) || make -j1 V=s
+        if [[ "${{github.event.action}}" == "*j1*" ]]; then
+          make -j1 V=s
+        else
+          make -j$(($(nproc)+1)) || make -j1 V=s
+        fi
         echo "status=success" >> $GITHUB_ENV
 
     - name: Organize files
