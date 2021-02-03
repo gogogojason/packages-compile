@@ -85,7 +85,7 @@ jobs:
     - name: Clone source code
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
-        svn co https://github.com/gogogojason/New-Openwrt-AutoBuild/trunk/devices openwrt/devices
+        svn co https://github.com/gogogojason/OpenWrt/trunk/devices openwrt/devices
 
     - name: Free up disk space
       if: env.FREE_UP_DISK == 'true'
