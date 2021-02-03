@@ -49,6 +49,7 @@ jobs:
         echo "REPO_BRANCH=${REPO_BRANCH}" >> $GITHUB_ENV
         echo "CONFIG_FILE=${CONFIG_FILE}" >> $GITHUB_ENV
         echo "DIY_SH=${DIY_SH}" >> $GITHUB_ENV
+        echo "DIY_SH2=${DIY_SH2}" >> $GITHUB_ENV
         echo "FREE_UP_DISK=${FREE_UP_DISK}" >> $GITHUB_ENV
         echo "SSH_ACTIONS=${SSH_ACTIONS}" >> $GITHUB_ENV
         echo "UPLOAD_MYPAN=${UPLOAD_MYPAN}" >> $GITHUB_ENV
@@ -110,6 +111,7 @@ jobs:
         chmod +x devices/common/*
         chmod +x devices/${{matrix.target}}/*
         /bin/bash "devices/common/$DIY_SH"
+        /bin/bash "devices/common/$DIY_SH2"
         /bin/bash "devices/common/custom.sh"
         if [ -f "devices/${{matrix.target}}/$DIY_SH" ]; then
           /bin/bash "devices/${{matrix.target}}/$DIY_SH"
