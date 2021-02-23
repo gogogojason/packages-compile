@@ -87,22 +87,35 @@ jobs:
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
         svn co https://github.com/gogogojason/OpenWrt/trunk/devices openwrt/devices
-
+        if [ ${{matrix.target}} == "All_RM2100" ]; then
+            wget -cO sdk.tar.xz https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-8.4.0_musl.Linux-x86_64.tar.xz
+        elif [ ${{matrix.target}} == "x86_64" ]; then
+            wget -cO sdk.tar.xz https://downloads.openwrt.org/snapshots/targets/x86/64/openwrt-sdk-x86-64_gcc-8.4.0_musl.Linux-x86_64.tar.xz
+        else
+            wget -cO sdk.tar.xz https://downloads.openwrt.org/snapshots/targets/rockchip/armv8/openwrt-sdk-rockchip-armv8_gcc-8.4.0_musl.Linux-x86_64.tar.xz
+        fi
     - name: Free up disk space
       if: env.FREE_UP_DISK == 'true'
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo mkdir -p -m 777 /mnt/openwrt/dl /mnt/openwrt/staging_dir
+        sudo mkdir -p -m 777 openwrt /mnt/openwrt/dl /mnt/openwrt/build_dir/hostpkg openwrt/build_dir /mnt/openwrt/bin
         ln -sf /mnt/openwrt/dl openwrt/dl
-        ln -sf /mnt/openwrt/staging_dir openwrt/staging_dir
-
+        ln -sf /mnt/openwrt/build_dir/hostpkg openwrt/build_dir/hostpkg
+        ln -sf /mnt/openwrt/bin openwrt/bin
+        
     - name: Load && Update feeds
       run: |
-        cp -Rf devices openwrt/
+        tar -xJf sdk.tar.xz -C openwrt
+        rm -Rf sdk.tar.xz
         cd openwrt
-        cp -rf devices/common/* ./
-        cp -rf devices/${{matrix.target}}/* ./
+        cp -rf ./openwrt-sdk*/. ./ || true
+        sed -i '/\(tools\|toolchain\)\/Makefile/d' Makefile
+        ln -sf /usr/bin/python staging_dir/host/bin/python
+        ln -sf /usr/bin/python staging_dir/host/bin/python3
+        mv -f ../devices ./
+        cp -rf devices/common/. ./
+        cp -rf devices/${{matrix.target}}/. ./
         ./scripts/feeds update -a
 
     - name: Load custom configuration
