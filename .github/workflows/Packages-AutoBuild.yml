@@ -107,9 +107,9 @@ jobs:
         
     - name: Load && Update feeds
       run: |
+        cd openwrt
         tar -xJf sdk.tar.xz -C openwrt
         rm -Rf sdk.tar.xz
-        cd openwrt
         cp -rf ./openwrt-sdk*/. ./ || true
         sed -i '/\(tools\|toolchain\)\/Makefile/d' Makefile
         ln -sf /usr/bin/python staging_dir/host/bin/python
