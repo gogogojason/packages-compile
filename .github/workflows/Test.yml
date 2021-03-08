@@ -18,12 +18,8 @@ on:
 
 env:
   REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
-  PPPOE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
-  PPPOE_PASSWD: ${{ secrets.PPPOE_PASSWD }}
   SCKEY: ${{ secrets.SCKEY }}
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-  TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+  DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }} 
   TZ: Asia/Shanghai
 
 jobs:
@@ -57,6 +53,7 @@ jobs:
         echo "DIY_SH=${DIY_SH}" >> $GITHUB_ENV
         echo "FREE_UP_DISK=${FREE_UP_DISK}" >> $GITHUB_ENV
         echo "SSH_ACTIONS=${SSH_ACTIONS}" >> $GITHUB_ENV
+        echo "UPLOAD_MYPAN=${UPLOAD_MYPAN}" >> $GITHUB_ENV
         echo "UPLOAD_BIN_DIR_FOR_ARTIFACT=${UPLOAD_BIN_DIR_FOR_ARTIFACT}" >> $GITHUB_ENV
         echo "UPLOAD_FIRMWARE_FOR_ARTIFACT=${UPLOAD_FIRMWARE_FOR_ARTIFACT}" >> $GITHUB_ENV
         echo "UPLOAD_FIRMWARE_FOR_RELEASE=${UPLOAD_FIRMWARE_FOR_RELEASE}" >> $GITHUB_ENV
@@ -151,6 +148,7 @@ jobs:
         fi
         cp -Rf ./diy/* ./ || true
         sed -i "s/index()/index()\nif luci.sys.exec(\"cat \/etc\/openwrt_release | grep -o -E ^DISTRIB_DESCRIPTION='.*SNAPSHOT.*GaryPang'\") == \"\" then return end/g" package/feeds/custom/luci-app*/luasrc/controller/*.lua
+   
     - name: Apply patches
       run: |
         cd openwrt
@@ -243,6 +241,7 @@ jobs:
         [ ${{ env.WETRANS }} ] && echo -e "[WeTransfer] (${{ env.WETRANS }} 🗽)\n" >> release.txt
         [ ${{ env.COWURL }} ] && echo -e "[奶牛上传] (${{ env.COWURL }} 🐮)\n" >> release.txt
         [ ${{ env.NOTICE }} ] && echo -e "${{ env.NOTICE }}" >> release.txt || true
+        
     - name: Upload firmware for release
       uses: softprops/action-gh-release@v1
       continue-on-error: true
@@ -267,42 +266,18 @@ jobs:
         tag_name: ${{ env.date }}_${{ env.MTARGET }}
         body_path: release.txt
 
-    - name: deploy files to server
-      uses: easingthemes/ssh-deploy@master
-      continue-on-error: true
-      if: env.SSH_PRIVATE_KEY && ! contains(github.event.action, 'noser') && env.DEPLOY && ! contains(github.event.action, 'luci-app')
-      with:
-        SSH_PRIVATE_KEY: ${{ env.SSH_PRIVATE_KEY }}
-        ARGS: "-avzr --delete-after"
-        SOURCE: "packages/"
-        REMOTE_HOST: op.supes.top
-        REMOTE_USER: root
-        TARGET: "/www/wwwroot/op.supes.top/packages/${{ env.MTARGET }}/"
+    - name: 上传固件到网盘
+      uses: AEnterprise/rsync-deploy@v1.0 
+      if: env.UPLOAD_MYPAN == 'true'
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }} 
+        ARGS: -avzr --exclude=
+        SERVER_PORT: ${{ secrets.SERVER_PORT }}
+        FOLDER: packages/
+        SERVER_IP: ${{ secrets.SSH_HOST }} 
+        USERNAME: ${{ secrets.SSH_USERNAME }} 
+        SERVER_DESTINATION: /mnt/disk2/appdata/h5ai/Packages/${{ env.MTARGET }}/
 
-    - name: deploy files to server with no delete
-      uses: easingthemes/ssh-deploy@master
-      continue-on-error: true
-      if: env.SSH_PRIVATE_KEY && ! contains(github.event.action, 'noser') && ! env.DEPLOY
-      with:
-        SSH_PRIVATE_KEY: ${{ env.SSH_PRIVATE_KEY }}
-        ARGS: "-avzr"
-        SOURCE: "packages/"
-        REMOTE_HOST: op.supes.top
-        REMOTE_USER: root
-        TARGET: "/www/wwwroot/op.supes.top/packages/${{ env.MTARGET }}/"
-
-    - name: remote ssh command
-      uses: appleboy/ssh-action@master
-      continue-on-error: true
-      if: env.SSH_PRIVATE_KEY && ! contains(github.event.action, 'noser') && env.DEPLOY
-      with:
-        host: op.supes.top
-        username: root
-        key: ${{ env.SSH_PRIVATE_KEY }}
-        script: |
-          cp -R /www/wwwroot/op.supes.top/packages/keep/common/* /www/wwwroot/op.supes.top/packages/${{ env.MTARGET }}/
-          cp -R /www/wwwroot/op.supes.top/packages/keep/${{ env.MTARGET }}/* /www/wwwroot/op.supes.top/packages/${{ env.MTARGET }}/
-          opkg all
     - name: Upload packages for artifact
       uses: actions/upload-artifact@main
       continue-on-error: true
