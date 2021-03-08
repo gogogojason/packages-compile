@@ -87,6 +87,7 @@ jobs:
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
         svn co https://github.com/gogogojason/OpenWrt/trunk/devices openwrt/devices
+        cd openwrt
         if [ ${{matrix.target}} == "All_RM2100" ]; then
             wget -cO sdk.tar.xz https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-8.4.0_musl.Linux-x86_64.tar.xz
         elif [ ${{matrix.target}} == "x86_64" ]; then
