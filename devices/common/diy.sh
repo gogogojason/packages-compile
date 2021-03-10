@@ -18,4 +18,3 @@ sed -i 's/"IP限速"/"网速控制"/g' feeds/custom/luci-app-eqos/po/zh_Hans/eqo
 sed -i 's/+luci-theme-bootstrap/+luci-theme-edge/g' feeds/luci/collections/luci/Makefile
 sed -i "s/bootstrap/argon/g" feeds/luci/modules/luci-base/root/etc/config/luci
 sed -i '/set luci.main.mediaurlbase=\/luci-static\/bootstrap/d' feeds/luci/themes/luci-theme-bootstrap/root/etc/uci-defaults/30_luci-theme-bootstrap
-sed -i 's/网页管理端口/账号密码为root | 管理端口/g' feeds/custom/luci-app-adguardhome/po/zh-cn/AdGuardHome.po
