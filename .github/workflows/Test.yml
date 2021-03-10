@@ -127,6 +127,7 @@ jobs:
         chmod +x devices/common/* || true
         chmod +x devices/${{matrix.target}}/* || true
         /bin/bash "devices/common/custom.sh"
+        /bin/bash "devices/common/diy.sh"
         if [ -f "devices/${{matrix.target}}/custom.sh" ]; then
           /bin/bash "devices/${{matrix.target}}/custom.sh"
         fi
